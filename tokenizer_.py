@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import os
-import predict
+from predictor import tokenize_outputs
 
 
 def parse_args():
@@ -25,7 +25,7 @@ def predict_outputs(params):
     RESOURCES_PATH = os.path.join(os.getcwd(), 'resources')
     model_path = os.path.join(RESOURCES_PATH, 'bilstm_model.pt')
     test_x = parse_file(file_path)
-    predict.tokenize_outputs(model_path, test_x, output_path)
+    tokenize_outputs(model_path, test_x, output_path)
 
 
 if __name__ == '__main__':

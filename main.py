@@ -12,6 +12,7 @@ from model import HyperParameters,  BaselineModel
 from data_loader import WikiDataset
 from training import Trainer
 
+
 if __name__ == '__main__':
     DATA_PATH = os.path.join(os.getcwd(), 'data')
     RESOURCES_PATH = os.path.join(os.getcwd(), 'resources')

@@ -1,1 +1,1 @@
-from data_loaders.parse_dataset import WikiDataset
+from data_loader.parse_dataset import WikiDataset
