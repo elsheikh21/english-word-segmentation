@@ -14,7 +14,6 @@ def parse_args():
 
 
 def parse_file(input_file_path):
-    lines = []
     with open(input_file_path, encoding='utf-8', mode='r') as file_:
         lines = file_.readlines()
     return [line.strip() for line in lines]
@@ -25,11 +24,8 @@ def predict_outputs(params):
     output_path = os.path.join(os.getcwd(), 'en.wiki.gold.test')
     RESOURCES_PATH = os.path.join(os.getcwd(), 'resources')
     model_path = os.path.join(RESOURCES_PATH, 'bilstm_model.pt')
-    dataset_path = os.path.join(RESOURCES_PATH, 'train_dataset.pkl')
-
     test_x = parse_file(file_path)
     predict.tokenize_outputs(model_path, test_x, output_path)
-    # TODO: Check https://github.com/jidasheng/bi-lstm-crf
 
 
 if __name__ == '__main__':

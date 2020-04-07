@@ -5,13 +5,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from utils import save_pickle
 
-from eval import compute_scores, pprint_confusion_matrix
-from hyperparameters import HyperParameters
-from models import BaselineModel
-from parse_dataset import WikiDataset
-from train import Trainer
+from utilities import save_pickle
+from evaluator import compute_scores, pprint_confusion_matrix
+from model import HyperParameters,  BaselineModel
+from data_loader import WikiDataset
+from training import Trainer
 
 if __name__ == '__main__':
     DATA_PATH = os.path.join(os.getcwd(), 'data')
