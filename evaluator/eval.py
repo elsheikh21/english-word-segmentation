@@ -8,7 +8,7 @@ from sklearn.metrics import (confusion_matrix, precision_score,
 from torch.utils.data import DataLoader
 
 
-def compute_scores(model: nn.Module, l_dataset: DataLoader, l_label_vocab):
+def compute_scores(model: nn.Module, l_dataset: DataLoader):
     all_predictions = list()
     all_labels = list()
     for indexed_elem in l_dataset:
@@ -34,8 +34,6 @@ def compute_scores(model: nn.Module, l_dataset: DataLoader, l_label_vocab):
         all_labels, all_predictions, average="macro", zero_division=0)
 
     per_class_precision = precision_score(all_labels, all_predictions,
-                                          labels=list(
-                                              range(len(l_label_vocab))),
                                           average=None,
                                           zero_division=0)
 
@@ -43,9 +41,7 @@ def compute_scores(model: nn.Module, l_dataset: DataLoader, l_label_vocab):
             "micro_precision_recall_fscore": micro_precision_recall_fscore,
             "per_class_precision": per_class_precision,
             "confusion_matrix": confusion_matrix(all_labels, all_predictions,
-                                                 labels=list(
-                                                     range(len(l_label_vocab))),
-                                                 normalize='all')}
+                                                 normalize='true')}
 
 
 def pprint_confusion_matrix(conf_matrix, num_classes):

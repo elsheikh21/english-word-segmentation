@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 
+
 class BaselineModel(nn.Module):
     def __init__(self, hparams):
         super(BaselineModel, self).__init__()
         self.name = 'BiLSTM'
         self.word_embedding = nn.Embedding(hparams.vocab_size,
-                                           hparams.embedding_dim)
+                                           hparams.embedding_dim,
+                                           padding_idx=0)
         if hparams.embeddings is not None:
             print("initializing embeddings from pre-trained")
             self.word_embedding.weight.data.copy_(hparams.embeddings)

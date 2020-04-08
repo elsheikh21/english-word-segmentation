@@ -3,12 +3,12 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from utilities import save_pickle
 from evaluator import compute_scores, pprint_confusion_matrix
-from model import HyperParameters,  BaselineModel
+from model import HyperParameters,  BaselineModel, load_pretrained_embeddings
 from data_loader import WikiDataset
 from training import Trainer
 
@@ -55,9 +55,14 @@ if __name__ == '__main__':
     print(f'dev_y shape is: {dev_y.shape}')
     # y.shape = [number of samples, max characters/sentence] = [3_994 , 256]
 
+    embeddings_size = 300
+    pretrained_embeddings = load_pretrained_embeddings(fname, train_dataset.char2idx, embeddings_size)
+
     hyperparams = HyperParameters()
     hyperparams.vocab_size = train_dataset.vocab_size
     hyperparams.num_classes = train_dataset.out_vocab_size
+    hyperparams.embedding_dim = embeddings_size
+    hyperparams.embeddings = pretrained_embeddings
 
     baseline_model = BaselineModel(hyperparams).cuda()
     print('\n========== Model Summary ==========')
@@ -71,8 +76,7 @@ if __name__ == '__main__':
         model=baseline_model,
         loss_function=nn.CrossEntropyLoss(
             ignore_index=train_dataset.label2idx['<PAD>']),
-        optimizer=optim.Adam(baseline_model.parameters(),
-                             lr=1e-6, weight_decay=1e-5),
+        optimizer=Adam(baseline_model.parameters(), lr=1e-6, weight_decay=1e-5),
         label_vocab=train_dataset.label2idx
     )
 
@@ -88,8 +92,7 @@ if __name__ == '__main__':
     # test_loss, test_acc = trainer.evaluate(test_dataset)
     # print(f"Test set\nLoss: {test_loss:.5f}, Acc: {test_acc * 100:.5f}%")
 
-    scores = compute_scores(baseline_model, dev_dataset_,
-                            train_dataset.label2idx)
+    scores = compute_scores(baseline_model, dev_dataset_)
 
     per_class_precision = scores["per_class_precision"]
 
@@ -111,4 +114,4 @@ if __name__ == '__main__':
 
     confusion_matrix = scores['confusion_matrix']
     print(confusion_matrix)
-    pprint_confusion_matrix(confusion_matrix, num_classes=4)
+    pprint_confusion_matrix(confusion_matrix, num_classes=3)
