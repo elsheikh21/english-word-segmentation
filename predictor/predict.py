@@ -9,15 +9,6 @@ from model import HyperParameters
 from utilities import load_pickle
 
 
-def decode_output(logits: torch.Tensor, idx2label):
-    # print(logits.shape) # shape = (batch_size, max_len)
-    max_indices = torch.argmax(logits, -1).tolist()
-    predictions = list()
-    for indices in max_indices:
-        predictions.append([idx2label[i] for i in indices])
-    return predictions
-
-
 def predict(model: nn.Module, data_x):
     # Model predictions
     model.eval()
@@ -52,7 +43,6 @@ def tokenize_outputs(model_path, test_x, output_path):
             model_path, map_location=torch.device('cpu')))
 
     # compute predictions
-    # TODO: Test model output
     y_pred = []
     for data_x in tqdm(test_x, desc='Computing predictions'):
         data_x_ = [char2idx.get(char, 1) for char in data_x]

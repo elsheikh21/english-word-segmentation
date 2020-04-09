@@ -80,16 +80,16 @@ class Trainer():
             # Get bool not ByteTensor
             is_best = bool(valid_loss.numpy() < best_val_loss.numpy())
             # Get greater Tensor to keep track best validation loss
-            best_valid_loss = torch.FloatTensor(
-                min(valid_loss.numpy(), best_val_loss.numpy()))
+            best_valid_loss = torch.FloatTensor(min(valid_loss.numpy(),
+                                                    best_val_loss.numpy()))
             # Save checkpoint if is a new best
             save_checkpoint({
                 'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
+                'state_dict': self.model.state_dict(),
                 'best_val_loss': best_valid_loss
             }, is_best)
 
-            self.writer.add_scalar('Loss/Train', avg_epoch_loss, epoch)
+            self.writer.add_scalar('Loss/Train', epoch_loss, epoch)
             self.writer.add_scalar('Acc/Train', acc, epoch)
             self.writer.add_scalar('Loss/Valid', valid_loss, epoch)
             self.writer.add_scalar('Acc/Valid', valid_acc, epoch)
@@ -99,6 +99,7 @@ class Trainer():
                     f'\tEpoch #: {epoch:2d} [loss: {avg_epoch_loss:0.4f}, val_loss: {valid_loss:0.4f}')
             scheduler.step(valid_loss)
             if es.step(valid_loss):
+                print(f"Early Stopping callback was activated at epoch num: {epoch}")
                 break
             liveloss.update(logs)
             liveloss.send()

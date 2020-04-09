@@ -7,15 +7,14 @@ from utilities import configure_workspace, save_pickle
 
 
 class WikiDataset(Dataset):
-    def __init__(self, input_file_path: str, gold_file_path: str, max_char_len=256):
+    def __init__(self, input_file_path: str, gold_file_path: str, max_char_len:int =256, TASK:str='BIS'):
         configure_workspace()
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.max_len = max_char_len
         self.parse_dataset(input_file_path, gold_file_path)
         self.get_unigrams()
         self.create_vocabulary()
-        self.encode_labels()
+        self.encode_labels(TASK)
         self.encoded_data = None
         self.vocab_size = len(self.char2idx.keys())
         self.out_vocab_size = len(self.label2idx.keys())
@@ -35,9 +34,16 @@ class WikiDataset(Dataset):
 
         self.data_y = [line.strip() for line in lines_]
 
-    def encode_labels(self):
-        self.label2idx = {'<PAD>': 0, 'B': 1, 'I': 2, 'S': 3}
-        self.idx2label = {0: '<PAD>', 1: 'B', 2: 'I', 3: 'S'}
+    def encode_labels(self, TASK='BIS'):
+        if TASK == 'BIS':
+            self.label2idx = {'<PAD>':0, 'B': 1, 'I': 2, 'S': 3}
+            self.idx2label = {0: '<PAD>', 1: 'B', 2: 'I', 3: 'S'}
+        elif TASK == 'BI':
+            self.label2idx = {'<PAD>':0, 'B': 1, 'I': 2}
+            self.idx2label = {0: '<PAD>', 1: 'B', 2: 'I'}
+        else:
+            raise NotImplementedError
+
 
     def get_unigrams(self):
         chars = []
@@ -77,14 +83,18 @@ class WikiDataset(Dataset):
             train_y.append(self.char_padding(sentence_))
         self.train_y = train_y
         self.encode_data()
-
+    
     def encode_data(self):
         self.encoded_data = list()
         # data_x.shape = [samples_num, max_chars_sentence]
-        # assert self.train_x.shape == self.train_y.shape
+        assert len(self.train_x) == len(self.train_y)
         for i in range(len(self.train_x)):
             train_x = torch.LongTensor(self.train_x[i]).to(self.device)
-            train_y = torch.LongTensor(self.train_y[i]).to(self.device)
+            try:
+                train_y = torch.LongTensor(self.train_y[i]).to(self.device)
+            except:
+                print(i)
+                print(self.train_y[i])
             self.encoded_data.append({"inputs": train_x, "outputs": train_y})
 
     def __len__(self):
@@ -92,14 +102,12 @@ class WikiDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.encoded_data is None:
-            raise RuntimeError(
-                "Trying to retrieve elements, but dataset is not vectorized yet")
+            raise RuntimeError("Trying to retrieve elements, but dataset is not vectorized yet")
         return self.encoded_data[idx]
 
     @staticmethod
     def decode_output(logits: torch.Tensor, idx2label):
-        # shape = (batch_size, max_len)
-        max_indices = torch.argmax(logits, -1).tolist()
+        max_indices = torch.argmax(logits, -1).tolist()  # shape = (batch_size, max_len)
         predictions = list()
         for indices in max_indices:
             predictions.append([idx2label[i] for i in indices])
@@ -109,7 +117,6 @@ class WikiDataset(Dataset):
     def decode_data(data: torch.Tensor, idx2label):
         data_ = data.tolist()
         return [idx2label.get(idx, None) for idx in data_]
-
 
 if __name__ == '__main__':
     DATA_PATH = os.path.join(os.getcwd(), 'data')

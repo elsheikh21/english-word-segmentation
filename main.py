@@ -46,6 +46,10 @@ if __name__ == '__main__':
     dev_file_path = os.path.join(DATA_PATH, 'en.wiki.sentences.dev')
     dev_gold_file_path = os.path.join(DATA_PATH, 'en.wiki.gold.dev')
     dev_dataset = WikiDataset(dev_file_path, dev_gold_file_path)
+    dev_dataset.char2idx = train_dataset.char2idx
+    dev_dataset.idx2char = train_dataset.idx2char
+    dev_dataset.label2idx = train_dataset.label2idx
+    dev_dataset.idx2label = train_dataset.idx2label
     dev_dataset.vectorize_data()
 
     dev_x = torch.LongTensor(dev_dataset.train_x)
@@ -56,6 +60,7 @@ if __name__ == '__main__':
     # y.shape = [number of samples, max characters/sentence] = [3_994 , 256]
 
     embeddings_size = 300
+    fname = os.path.join(RESOURCES_PATH, 'wiki.en.vec')
     pretrained_embeddings = load_pretrained_embeddings(fname, train_dataset.char2idx, embeddings_size)
 
     hyperparams = HyperParameters()
@@ -68,8 +73,9 @@ if __name__ == '__main__':
     print('\n========== Model Summary ==========')
     print(baseline_model)
 
-    train_dataset_ = DataLoader(
-        train_dataset, batch_size=hyperparams.batch_size)
+    train_dataset_ = DataLoader(train_dataset,
+                                batch_size=hyperparams.batch_size,
+                                shuffle=True)
     dev_dataset_ = DataLoader(dev_dataset, batch_size=hyperparams.batch_size)
 
     trainer = Trainer(
@@ -81,7 +87,7 @@ if __name__ == '__main__':
     )
 
     trainer.train(train_dataset_, dev_dataset_, epochs=50)
-    save_model_path = os.path.join(RESOURCES_PATH, 'bilstm_model.pt')
+    save_model_path = os.path.join(RESOURCES_PATH, f'{baseline_model.name}_model.pt')
     torch.save(baseline_model.state_dict(), save_model_path)
 
     # load model
