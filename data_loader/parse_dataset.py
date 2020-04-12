@@ -7,13 +7,14 @@ from utilities import configure_workspace, save_pickle
 
 
 class WikiDataset(Dataset):
-    def __init__(self, input_file_path: str, gold_file_path: str, max_char_len:int =256, TASK:str='BIS'):
+    def __init__(self, input_file_path: str, gold_file_path: str,
+                 max_char_len:int =256, is_crf:bool =False, TASK:str='BIS'):
         configure_workspace()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.max_len = max_char_len
         self.parse_dataset(input_file_path, gold_file_path)
         self.get_unigrams()
-        self.create_vocabulary()
+        self.create_vocabulary(is_crf)
         self.encode_labels(TASK)
         self.encoded_data = None
         self.vocab_size = len(self.char2idx.keys())
@@ -44,19 +45,23 @@ class WikiDataset(Dataset):
         else:
             raise NotImplementedError
 
-
     def get_unigrams(self):
         chars = []
         for sentence in self.data_x:
             chars.extend([word for word in sentence])
         self.unigrams = sorted(list(set(chars)))
 
-    def create_vocabulary(self):
+    def create_vocabulary(self, is_crf):
         self.char2idx = dict()
         self.char2idx['<PAD>'] = 0
         self.char2idx['<UNK>'] = 1
-        self.char2idx.update(
-            {val: key for (key, val) in enumerate(self.unigrams, start=2)})
+        start_= 2
+        if is_crf:
+            self.char2idx['<BOS>'] = 2
+            self.char2idx['<EOS>'] = 3
+            start_= 4
+        self.char2idx.update({val: key for (key, val) in enumerate(self.unigrams,
+                                                  start=start_)})
         self.idx2char = {val: key for (key, val) in self.char2idx.items()}
 
     def char_padding(self, sentence_):
@@ -90,11 +95,7 @@ class WikiDataset(Dataset):
         assert len(self.train_x) == len(self.train_y)
         for i in range(len(self.train_x)):
             train_x = torch.LongTensor(self.train_x[i]).to(self.device)
-            try:
-                train_y = torch.LongTensor(self.train_y[i]).to(self.device)
-            except:
-                print(i)
-                print(self.train_y[i])
+            train_y = torch.LongTensor(self.train_y[i]).to(self.device)
             self.encoded_data.append({"inputs": train_x, "outputs": train_y})
 
     def __len__(self):

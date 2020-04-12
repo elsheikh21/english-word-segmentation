@@ -8,10 +8,9 @@ from torch.utils.data import DataLoader
 
 from utilities import save_pickle
 from evaluator import compute_scores, pprint_confusion_matrix
-from model import HyperParameters,  BaselineModel, load_pretrained_embeddings
+from model import HyperParameters, BaselineModel, load_pretrained_embeddings, BiLSTM_CRF
 from data_loader import WikiDataset
 from training import Trainer
-
 
 if __name__ == '__main__':
     DATA_PATH = os.path.join(os.getcwd(), 'data')
@@ -66,10 +65,9 @@ if __name__ == '__main__':
     hyperparams = HyperParameters()
     hyperparams.vocab_size = train_dataset.vocab_size
     hyperparams.num_classes = train_dataset.out_vocab_size
-    hyperparams.embedding_dim = embeddings_size
     hyperparams.embeddings = pretrained_embeddings
 
-    baseline_model = BaselineModel(hyperparams).cuda()
+    baseline_model = BaselineModel(hyperparams)
     print('\n========== Model Summary ==========')
     print(baseline_model)
 
@@ -86,7 +84,7 @@ if __name__ == '__main__':
         label_vocab=train_dataset.label2idx
     )
 
-    trainer.train(train_dataset_, dev_dataset_, epochs=50)
+    trainer.train(train_dataset_, dev_dataset_, epochs=2)
     save_model_path = os.path.join(RESOURCES_PATH, f'{baseline_model.name}_model.pt')
     torch.save(baseline_model.state_dict(), save_model_path)
 
