@@ -1,6 +1,7 @@
 import os
 
 import torch
+from torch.autograd import Variable
 from torch.utils.data import Dataset
 
 from utilities import configure_workspace, save_pickle
@@ -64,6 +65,7 @@ class WikiDataset(Dataset):
                                                   start=start_)})
         self.idx2char = {val: key for (key, val) in self.char2idx.items()}
 
+    """
     def char_padding(self, sentence_):
         if len(sentence_) > self.max_len:
             sentence_ = sentence_[:self.max_len]
@@ -71,6 +73,7 @@ class WikiDataset(Dataset):
             for _ in range(self.max_len - len(sentence_)):
                 sentence_.append(self.label2idx.get('<PAD>'))
         return sentence_
+    """
 
     def vectorize_data(self):
         """
@@ -79,13 +82,15 @@ class WikiDataset(Dataset):
         train_x = []
         for sentence in self.data_x:
             sentence_ = [self.char2idx.get(char, 1) for char in sentence]
-            train_x.append(self.char_padding(sentence_))
+            train_x.append(sentence_)
+            # train_x.append(self.char_padding(sentence_))
         self.train_x = train_x
 
         train_y = []
         for sentence in self.data_y:
             sentence_ = [self.label2idx.get(label) for label in sentence]
-            train_y.append(self.char_padding(sentence_))
+            train_y.append(sentence_)
+            # train_y.append(self.char_padding(sentence_))
         self.train_y = train_y
         self.encode_data()
     
@@ -94,9 +99,9 @@ class WikiDataset(Dataset):
         # data_x.shape = [samples_num, max_chars_sentence]
         assert len(self.train_x) == len(self.train_y)
         for i in range(len(self.train_x)):
-            train_x = torch.LongTensor(self.train_x[i]).to(self.device)
-            train_y = torch.LongTensor(self.train_y[i]).to(self.device)
-            self.encoded_data.append({"inputs": train_x, "outputs": train_y})
+            # train_x = torch.LongTensor(self.train_x[i]).to(self.device)
+            # train_y = torch.LongTensor(self.train_y[i]).to(self.device)
+            self.encoded_data.append({"inputs": self.train_x[i], "outputs": self.train_y[i]})
 
     def __len__(self):
         return len(self.data_x)
@@ -118,6 +123,28 @@ class WikiDataset(Dataset):
     def decode_data(data: torch.Tensor, idx2label):
         data_ = data.tolist()
         return [idx2label.get(idx, None) for idx in data_]
+
+    @staticmethod
+    def pad_collate(batch):
+        data_x, data_y = [], []
+        for item in batch:
+            data_x.append(item.get('inputs'))
+            data_y.append(item.get('outputs'))
+            seq_lengths = torch.LongTensor(list(map(len, data_x)))
+            seq_tensor = Variable(torch.zeros((len(data_x), seq_lengths.max()))).long()
+            for idx, (seq, seqlen) in enumerate(zip(data_x, seq_lengths)):
+                seq_tensor[idx, :seqlen] = torch.LongTensor(seq)
+            seq_lengths, perm_idx = seq_lengths.sort(0, descending=True)
+            seq_tensor = seq_tensor[perm_idx]
+
+            lbl_length = torch.LongTensor(list(map(len, data_y)))
+            lbl_tensor = Variable(torch.zeros((len(data_y), lbl_length.max()))).long()
+            for idx, (lbl, lbllen) in enumerate(zip(data_y, lbl_length)):
+                lbl_tensor[idx, :lbllen] = torch.LongTensor(lbl)
+            lbl_lengths, perm_idx = lbl_length.sort(0, descending=True)
+            lbl_tensor = lbl_tensor[perm_idx]
+            return seq_tensor.to('cuda'), lbl_tensor.to('cuda'), seq_lengths
+
 
 if __name__ == '__main__':
     DATA_PATH = os.path.join(os.getcwd(), 'data')

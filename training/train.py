@@ -16,8 +16,9 @@ except ModuleNotFoundError:
     os.system('pip install livelossplot')
 
 
-class Trainer:
-    def __init__(self, model: nn.Module, loss_function, optimizer, label_vocab, log_steps: int = 10_000, log_level: int = 2):
+class Trainer():
+    def __init__(self, model: nn.Module, loss_function, optimizer, label_vocab, log_path: str, log_steps: int = 10_000,
+                 log_level: int = 2):
         self.model = model
         self.loss_function = loss_function
         self.optimizer = optimizer
@@ -29,17 +30,17 @@ class Trainer:
         self.writer = SummaryWriter()
 
     def train(self, train_dataset: Dataset, valid_dataset: Dataset, epochs: int = 1):
-        best_val_loss = torch.FloatTensor([1e3])
+        best_val_loss = torch.FloatTensor([1e4])
         assert epochs > 1 and isinstance(epochs, int)
-        print('Training ...')
+        if self.log_level > 0:
+            print('Training ...')
         train_loss = 0.0
 
-        es = EarlyStopping(patience=5)
-        scheduler = ReduceLROnPlateau(
-            self.optimizer, mode='min', patience=5, min_lr=1e-8, verbose=True)
+        es = EarlyStopping(patience=7)
+        scheduler = ReduceLROnPlateau(self.optimizer, verbose=True, mode='min', patience=3, min_lr=1e-12)
         liveloss = PlotLosses()
 
-        epoch, step = 0, 0
+        epoch, epoch_, step = 0, 0, 0
         for epoch in tqdm(range(epochs), desc=f'Training Epoch # {epoch + 1} / {epochs}'):
             logs = {}
             if self.log_level > 0:
@@ -48,12 +49,14 @@ class Trainer:
             epoch_loss = 0.0
             self.model.train()
 
-            for step, sample in tqdm(enumerate(train_dataset), desc=f'Training on batch # {step + 1}'):
-                inputs = sample['inputs']
-                labels = sample['outputs']
+            for step, (inputs, labels, seq_lengths) in tqdm(enumerate(train_dataset),
+                                                            desc=f'Training on batches of {step + 1}'):
+                # print(sample)
+                # inputs = sample['inputs']
+                # labels = sample['outputs']
                 self.optimizer.zero_grad()
 
-                predictions = self.model(inputs)
+                predictions = self.model(inputs, seq_lengths)
                 predictions = predictions.view(-1, predictions.shape[-1])
                 labels = labels.view(-1)
 
@@ -63,25 +66,28 @@ class Trainer:
 
                 sample_loss = self.loss_function(predictions, labels)
                 sample_loss.backward()
+
+                clip_grad_norm_(self.model.parameters(), 1.)  # Gradient Clipping
+
                 self.optimizer.step()
 
                 epoch_loss += sample_loss.tolist()
 
                 if self.log_level > 1 and step % self.log_steps == self.log_steps - 1:
-                    print(
-                        f'\t[Epoch # {epoch:2d} @ step #{step}] Curr avg loss = {epoch_loss / (step + 1):0.4f}')
+                    print(f'\t[Epoch # {epoch:2d} @ step #{step}] Curr avg loss = {epoch_loss / (step + 1):0.4f}')
 
             avg_epoch_loss = epoch_loss / len(train_dataset)
             train_loss += avg_epoch_loss
+
+            epoch_ += 1
 
             valid_loss, valid_acc = self.evaluate(valid_dataset)
             logs['loss'] = avg_epoch_loss
             logs['valid_loss'] = valid_loss
             # Get bool not ByteTensor
-            is_best = bool(valid_loss.numpy() < best_val_loss.numpy())
+            is_best = bool(torch.FloatTensor([valid_loss]) > best_val_loss)
             # Get greater Tensor to keep track best validation loss
-            best_valid_loss = torch.FloatTensor(min(valid_loss.numpy(),
-                                                    best_val_loss.numpy()))
+            best_valid_loss = torch.FloatTensor([min(valid_loss, best_val_loss)])
             # Save checkpoint if is a new best
             save_checkpoint({
                 'epoch': epoch + 1,
@@ -89,18 +95,20 @@ class Trainer:
                 'best_val_loss': best_valid_loss
             }, is_best)
 
-            self.writer.add_scalar('Loss/Train', epoch_loss, epoch)
-            self.writer.add_scalar('Acc/Train', acc, epoch)
-            self.writer.add_scalar('Loss/Valid', valid_loss, epoch)
-            self.writer.add_scalar('Acc/Valid', valid_acc, epoch)
+            self.writer.add_scalar('Loss', epoch_loss, epoch_)
+            self.writer.add_scalar('Acc', acc, epoch_)
+            self.writer.add_scalar('Loss', valid_loss, epoch_)
+            self.writer.add_scalar('Acc', valid_acc, epoch_)
 
             if self.log_level > 0:
-                print(
-                    f'\tEpoch #: {epoch:2d} [loss: {avg_epoch_loss:0.4f}, val_loss: {valid_loss:0.4f}')
+                print(f'\tEpoch #: {epoch:2d} [loss: {avg_epoch_loss:0.4f}, val_loss: {valid_loss:0.4f}]')
+
             scheduler.step(valid_loss)
+
             if es.step(valid_loss):
                 print(f"Early Stopping callback was activated at epoch num: {epoch}")
                 break
+
             liveloss.update(logs)
             liveloss.send()
         if self.log_level > 0:
@@ -115,11 +123,8 @@ class Trainer:
         # set dropout to 0!! Needed when we are in inference mode.
         self.model.eval()
         with torch.no_grad():
-            for sample in valid_dataset:
-                inputs = sample['inputs']
-                labels = sample['outputs']
-
-                predictions = self.model(inputs)
+            for step, (inputs, labels, seq_lengths) in enumerate(valid_dataset):
+                predictions = self.model(inputs, seq_lengths)
                 predictions = predictions.view(-1, predictions.shape[-1])
                 labels = labels.view(-1)
                 sample_loss = self.loss_function(predictions, labels)

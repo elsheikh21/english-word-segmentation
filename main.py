@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
@@ -23,17 +22,12 @@ if __name__ == '__main__':
     train_dataset = WikiDataset(file_path, gold_file_path)
     train_dataset.vectorize_data()
 
-    train_x = torch.LongTensor(train_dataset.train_x)
-    print(f'train_x shape is: {train_x.shape}')
+    # train_x = torch.LongTensor(train_dataset.train_x)
+    # print(f'train_x shape is: {train_x.shape}')
     # x.shape = [number of samples, max characters/sentence] = [31_553, 256]
-    train_y = torch.LongTensor(train_dataset.train_y)
-    print(f'train_y shape is: {train_y.shape}')
+    # train_y = torch.LongTensor(train_dataset.train_y)
+    # print(f'train_y shape is: {train_y.shape}')
     # y.shape = [number of samples, max characters/sentence] = [31_553, 256]
-
-    train_x_path_save = os.path.join(RESOURCES_PATH, 'train_x.npy')
-    train_y_path_save = os.path.join(RESOURCES_PATH, 'train_y.npy')
-    np.save(train_x_path_save, train_dataset.train_x)
-    np.save(train_y_path_save, train_dataset.train_y)
 
     char2idx_path_save = os.path.join(RESOURCES_PATH, 'char2idx.pkl')
     save_pickle(char2idx_path_save, train_dataset.char2idx)
@@ -51,11 +45,11 @@ if __name__ == '__main__':
     dev_dataset.idx2label = train_dataset.idx2label
     dev_dataset.vectorize_data()
 
-    dev_x = torch.LongTensor(dev_dataset.train_x)
-    print(f'dev_x shape is: {dev_x.shape}')
+    # dev_x = torch.LongTensor(dev_dataset.train_x)
+    # print(f'dev_x shape is: {dev_x.shape}')
     # x.shape = [number of samples, max characters/sentence] = [3_994 , 256]
-    dev_y = torch.LongTensor(dev_dataset.train_y)
-    print(f'dev_y shape is: {dev_y.shape}')
+    # dev_y = torch.LongTensor(dev_dataset.train_y)
+    # print(f'dev_y shape is: {dev_y.shape}')
     # y.shape = [number of samples, max characters/sentence] = [3_994 , 256]
 
     embeddings_size = 300
@@ -73,8 +67,14 @@ if __name__ == '__main__':
 
     train_dataset_ = DataLoader(train_dataset,
                                 batch_size=hyperparams.batch_size,
-                                shuffle=True)
-    dev_dataset_ = DataLoader(dev_dataset, batch_size=hyperparams.batch_size)
+                                shuffle=True,
+                                collate_fn=WikiDataset.pad_collate)
+
+    dev_dataset_ = DataLoader(dev_dataset,
+                              batch_size=hyperparams.batch_size,
+                              shuffle=False,
+                              collate_fn=WikiDataset.pad_collate)
+
 
     trainer = Trainer(
         model=baseline_model,
